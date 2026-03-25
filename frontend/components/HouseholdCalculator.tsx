@@ -108,9 +108,28 @@ export default function HouseholdCalculator() {
               max={100}
               className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
             />
+            {married && (
+              <>
+                <label className="block text-sm font-medium text-gray-600 mb-1.5 mt-4">Spouse's age</label>
+                <input
+                  type="number"
+                  value={ageSpouseRaw}
+                  onChange={(e) => setAgeSpouseRaw(e.target.value)}
+                  onBlur={() => {
+                    const clamped = Math.max(18, Math.min(100, parseInt(ageSpouseRaw) || 18));
+                    setAgeSpouse(clamped);
+                    setAgeSpouseRaw(String(clamped));
+                  }}
+                  min={18}
+                  max={100}
+                  aria-label="Spouse age"
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                />
+              </>
+            )}
           </div>
 
-          {/* Married + spouse age */}
+          {/* Filing status */}
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-1.5">Filing status</label>
             <label
@@ -126,23 +145,6 @@ export default function HouseholdCalculator() {
               />
               <span className="text-sm text-gray-700">Married filing jointly</span>
             </label>
-            {married && (
-              <input
-                type="number"
-                value={ageSpouseRaw}
-                onChange={(e) => setAgeSpouseRaw(e.target.value)}
-                onBlur={() => {
-                  const clamped = Math.max(18, Math.min(100, parseInt(ageSpouseRaw) || 18));
-                  setAgeSpouse(clamped);
-                  setAgeSpouseRaw(String(clamped));
-                }}
-                min={18}
-                max={100}
-                placeholder="Spouse age"
-                aria-label="Spouse age"
-                className="w-full mt-2 px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-              />
-            )}
           </div>
         </div>
 
