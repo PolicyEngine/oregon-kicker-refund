@@ -1,6 +1,5 @@
 'use client';
 
-import { useMemo, useState } from 'react';
 import {
   ResponsiveContainer,
   BarChart,
@@ -9,46 +8,21 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
-  LineChart,
-  Line,
 } from 'recharts';
 import ChartWatermark from './ChartWatermark';
 
-// Historical kicker rates from policyengine-us parameters
+// Historical kicker rates from policyengine-us parameters (odd years only)
 const KICKER_HISTORY = [
-  { year: 2021, rate: 0.17341, active: true },
-  { year: 2022, rate: 0, active: false },
-  { year: 2023, rate: 0.4428, active: true },
-  { year: 2024, rate: 0, active: false },
-  { year: 2025, rate: 0.09863, active: true },
-  { year: 2026, rate: 0, active: false },
+  { year: 2021, rate: 0.17341 },
+  { year: 2023, rate: 0.4428 },
+  { year: 2025, rate: 0.09863 },
 ];
 
 function formatPercent(value: number): string {
   return `${(value * 100).toFixed(2)}%`;
 }
 
-function formatDollar(value: number): string {
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}k`;
-  return `$${value.toFixed(0)}`;
-}
-
-function formatDollarFull(value: number): string {
-  return `$${value.toLocaleString()}`;
-}
-
 export default function PolicyOverview() {
-  // Example calculation data showing kicker at different tax liabilities
-  const kickerExamples = useMemo(() => {
-    const taxLiabilities = [1000, 2500, 5000, 7500, 10000, 15000, 20000];
-    const rate2025 = 0.09863;
-    return taxLiabilities.map((tax) => ({
-      taxLiability: tax,
-      kicker: tax * rate2025,
-    }));
-  }, []);
 
   return (
     <div className="space-y-10">
@@ -151,70 +125,6 @@ export default function PolicyOverview() {
           The kicker only occurs in odd years. In even years (2022, 2024, 2026), there is no kicker as these are the
           &quot;off&quot; years in Oregon&apos;s biennial budget cycle.
         </p>
-      </div>
-
-      {/* Kicker by tax liability chart */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-3">
-          2025 kicker credit by prior year tax liability
-        </h3>
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={kickerExamples} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="taxLiability"
-                tickFormatter={formatDollar}
-                tick={{ fontSize: 12 }}
-                label={{ value: '2024 Oregon Tax Liability', position: 'insideBottom', offset: -5 }}
-              />
-              <YAxis tickFormatter={formatDollar} tick={{ fontSize: 12 }} />
-              <Tooltip
-                formatter={(value: number) => formatDollarFull(value)}
-                labelFormatter={(label: number) => `Tax Liability: ${formatDollarFull(label)}`}
-              />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="kicker"
-                name="2025 Kicker Credit"
-                stroke="#319795"
-                strokeWidth={3}
-                dot={{ fill: '#319795', strokeWidth: 2, r: 5 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-        <ChartWatermark />
-      </div>
-
-      {/* Example calculations table */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-3">
-          Example kicker calculations (2025)
-        </h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="text-left p-3 border">2024 Oregon Tax Liability</th>
-                <th className="text-right p-3 border">Kicker Rate</th>
-                <th className="text-right p-3 border">2025 Kicker Credit</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[1000, 2500, 5000, 7500, 10000].map((tax) => (
-                <tr key={tax}>
-                  <td className="p-3 border font-medium">{formatDollarFull(tax)}</td>
-                  <td className="p-3 border text-right">9.863%</td>
-                  <td className="p-3 border text-right font-semibold text-primary-700">
-                    {formatDollarFull(tax * 0.09863)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       </div>
 
       {/* Important notes */}

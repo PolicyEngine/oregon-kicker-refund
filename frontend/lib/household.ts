@@ -39,6 +39,7 @@ export function buildHouseholdSituation(
     tax_units: {
       "your tax unit": {
         members: ["you"],
+        or_income_tax_before_credits: { [yearStr]: null },  // Request this output
       },
     },
     households: {

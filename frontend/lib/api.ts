@@ -82,18 +82,31 @@ export const api = {
     const yearStr = "2024";
 
     // Run the calculation for 2024 tax year
-    const result = await peCalculate({ household });
+    const result = await peCalculate({
+      household,
+      output: ["or_income_tax_before_credits", "employment_income"],
+    });
 
     // Extract 2024 Oregon tax before credits
-    const orTaxBeforeCredits: number[] =
-      result.result.tax_units["your tax unit"][
-        "or_income_tax_before_credits"
-      ][yearStr];
+    const taxUnit = result.result?.tax_units?.["your tax unit"];
+    const personData = result.result?.people?.["you"];
 
-    const incomeRange: number[] =
-      result.result.people["you"][
-        "employment_income"
-      ][yearStr];
+    // Debug: log available tax unit variables
+    const availableVars = taxUnit ? Object.keys(taxUnit) : [];
+    console.log("Available tax unit variables:", availableVars.filter(v => v.includes("or_") || v.includes("OR")).join(", "));
+
+    if (!taxUnit?.or_income_tax_before_credits) {
+      // Try alternative variable name
+      const orTaxVar = availableVars.find(v => v.toLowerCase().includes("or_income_tax") || v.toLowerCase().includes("oregon"));
+      throw new Error(`Missing or_income_tax_before_credits. Available OR variables: ${availableVars.filter(v => v.toLowerCase().includes("or")).join(", ") || "none"}`);
+    }
+
+    const orTaxBeforeCredits: number[] = taxUnit.or_income_tax_before_credits[yearStr];
+    const incomeRange: number[] = personData.employment_income[yearStr];
+
+    if (!orTaxBeforeCredits || !incomeRange) {
+      throw new Error(`Missing data for year ${yearStr}. Available keys: ${Object.keys(taxUnit.or_income_tax_before_credits || {}).join(", ")}`)
+    }
 
     // Calculate 2025 kicker credit based on 2024 tax liability
     const kickerCredit = orTaxBeforeCredits.map(

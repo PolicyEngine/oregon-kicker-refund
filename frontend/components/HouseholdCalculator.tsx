@@ -69,14 +69,17 @@ export default function HouseholdCalculator() {
     <div className="space-y-6">
       {/* Inline household config */}
       <section className="bg-gray-50 rounded-xl p-6 md:p-8 border border-gray-200 shadow-sm">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">Your household</h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Your household</h2>
+        <p className="text-sm text-gray-600 mb-6">
+          Enter your 2024 tax year information below. Your 2025 Oregon Kicker is based on your 2024 Oregon tax liability.
+        </p>
 
         {/* Row 1: Income, Age, Filing status */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-5">
           {/* Employment income */}
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-1.5">
-              Employment income
+              2024 employment income
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
@@ -193,7 +196,7 @@ export default function HouseholdCalculator() {
             onClick={handleCalculate}
             className="py-3 px-10 rounded-lg font-semibold text-white bg-primary-500 hover:bg-primary-600 active:bg-primary-700 transition-all shadow-sm hover:shadow-md sm:w-auto w-full"
           >
-            Calculate kicker
+            Calculate 2025 kicker
           </button>
         </div>
       </section>
