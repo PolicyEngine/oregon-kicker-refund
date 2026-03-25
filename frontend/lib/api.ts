@@ -16,9 +16,6 @@ import {
 
 const PE_API_URL = "https://api.policyengine.org";
 
-// 2025 kicker rate (from policyengine-us parameters)
-const KICKER_RATE_2025 = 0.09863;
-
 class ApiError extends Error {
   status: number;
   response: unknown;
@@ -72,10 +69,49 @@ async function peCalculate(body: Record<string, any>): Promise<any> {
   return response.json();
 }
 
+// Fetch the 2025 kicker rate from PolicyEngine metadata
+async function fetchKickerRate(): Promise<number> {
+  try {
+    const response = await fetch(`${PE_API_URL}/us/metadata`);
+    if (!response.ok) throw new Error("Failed to fetch metadata");
+    const data = await response.json();
+
+    // Navigate to the kicker percent parameter
+    const kickerParam = data.parameters?.["gov.states.or.tax.income.credits.kicker.percent"];
+    if (kickerParam?.values) {
+      // Find the value for 2025
+      for (const entry of Object.values(kickerParam.values) as any[]) {
+        if (entry["2025-01-01"] !== undefined) {
+          return entry["2025-01-01"];
+        }
+      }
+      // Get the most recent value
+      const values = Object.entries(kickerParam.values).sort((a, b) =>
+        new Date(b[0]).getTime() - new Date(a[0]).getTime()
+      );
+      if (values.length > 0) {
+        return values[0][1] as number;
+      }
+    }
+  } catch (e) {
+    console.warn("Could not fetch kicker rate from API, using fallback");
+  }
+  // Fallback to known 2025 rate
+  return 0.09863;
+}
+
+let cachedKickerRate: number | null = null;
+
 export const api = {
   async calculateHouseholdImpact(
     request: HouseholdRequest
   ): Promise<HouseholdImpactResponse> {
+    // Fetch kicker rate (cached after first call)
+    if (cachedKickerRate === null) {
+      cachedKickerRate = await fetchKickerRate();
+    }
+    const kickerRate = cachedKickerRate;
+
     // Use 2024 for household calculation (2025 kicker is based on 2024 tax liability)
     const calcRequest = { ...request, year: 2024 };
     const household = buildHouseholdSituation(calcRequest);
@@ -87,17 +123,11 @@ export const api = {
       output: ["or_income_tax_before_credits", "employment_income"],
     });
 
-    // Extract 2024 Oregon tax before credits
     const taxUnit = result.result?.tax_units?.["your tax unit"];
     const personData = result.result?.people?.["you"];
 
-    // Debug: log available tax unit variables
-    const availableVars = taxUnit ? Object.keys(taxUnit) : [];
-    console.log("Available tax unit variables:", availableVars.filter(v => v.includes("or_") || v.includes("OR")).join(", "));
-
     if (!taxUnit?.or_income_tax_before_credits) {
-      // Try alternative variable name
-      const orTaxVar = availableVars.find(v => v.toLowerCase().includes("or_income_tax") || v.toLowerCase().includes("oregon"));
+      const availableVars = taxUnit ? Object.keys(taxUnit) : [];
       throw new Error(`Missing or_income_tax_before_credits. Available OR variables: ${availableVars.filter(v => v.toLowerCase().includes("or")).join(", ") || "none"}`);
     }
 
@@ -105,21 +135,17 @@ export const api = {
     const incomeRange: number[] = personData.employment_income[yearStr];
 
     if (!orTaxBeforeCredits || !incomeRange) {
-      throw new Error(`Missing data for year ${yearStr}. Available keys: ${Object.keys(taxUnit.or_income_tax_before_credits || {}).join(", ")}`)
+      throw new Error(`Missing data for year ${yearStr}`);
     }
 
     // Calculate 2025 kicker credit based on 2024 tax liability
     const kickerCredit = orTaxBeforeCredits.map(
-      (tax) => Math.max(0, tax) * KICKER_RATE_2025
+      (tax) => Math.max(0, tax) * kickerRate
     );
 
     // Interpolate at user's income
-    const taxAtIncome = interpolate(
-      incomeRange,
-      orTaxBeforeCredits,
-      request.income
-    );
-    const kickerAtIncome = Math.max(0, taxAtIncome) * KICKER_RATE_2025;
+    const taxAtIncome = interpolate(incomeRange, orTaxBeforeCredits, request.income);
+    const kickerAtIncome = Math.max(0, taxAtIncome) * kickerRate;
 
     return {
       income_range: incomeRange,
@@ -130,7 +156,7 @@ export const api = {
         or_tax_before_credits: taxAtIncome,
         kicker_credit: kickerAtIncome,
       },
-      kicker_rate: KICKER_RATE_2025,
+      kicker_rate: kickerRate,
       x_axis_max: request.max_earnings,
     };
   },
