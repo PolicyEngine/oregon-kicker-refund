@@ -74,7 +74,7 @@ export default function HouseholdCalculator() {
           Enter your 2024 tax year information below. Your 2025 Oregon Kicker is based on your 2024 Oregon tax liability.
         </p>
 
-        {/* Row 1: Income, Age, Filing status */}
+        {/* Row 1: Income, Filing status, Dependents */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-5">
           {/* Employment income */}
           <div>
@@ -90,43 +90,6 @@ export default function HouseholdCalculator() {
                 className="w-full pl-6 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
               />
             </div>
-          </div>
-
-          {/* Age */}
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1.5">Your age</label>
-            <input
-              type="number"
-              value={ageHeadRaw}
-              onChange={(e) => setAgeHeadRaw(e.target.value)}
-              onBlur={() => {
-                const clamped = Math.max(18, Math.min(100, parseInt(ageHeadRaw) || 18));
-                setAgeHead(clamped);
-                setAgeHeadRaw(String(clamped));
-              }}
-              min={18}
-              max={100}
-              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-            />
-            {married && (
-              <>
-                <label className="block text-sm font-medium text-gray-600 mb-1.5 mt-4">Spouse's age</label>
-                <input
-                  type="number"
-                  value={ageSpouseRaw}
-                  onChange={(e) => setAgeSpouseRaw(e.target.value)}
-                  onBlur={() => {
-                    const clamped = Math.max(18, Math.min(100, parseInt(ageSpouseRaw) || 18));
-                    setAgeSpouse(clamped);
-                    setAgeSpouseRaw(String(clamped));
-                  }}
-                  min={18}
-                  max={100}
-                  aria-label="Spouse age"
-                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                />
-              </>
-            )}
           </div>
 
           {/* Filing status */}
@@ -146,10 +109,7 @@ export default function HouseholdCalculator() {
               <span className="text-sm text-gray-700">Married filing jointly</span>
             </label>
           </div>
-        </div>
 
-        {/* Row 2: Dependents */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-5 mt-5">
           {/* Dependents */}
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-1.5">Dependents</label>
@@ -161,35 +121,73 @@ export default function HouseholdCalculator() {
               max={10}
               className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
             />
-            {dependentAges.length > 0 && (
-              <div className="mt-2">
-                <span className="block text-xs font-medium text-gray-500 mb-1">Age(s)</span>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {dependentAges.map((age, i) => (
-                    <input
-                      key={i}
-                      type="number"
-                      value={age}
-                      onChange={(e) => {
-                        const newAges = [...dependentAges];
-                        newAges[i] = Math.max(0, Math.min(26, parseInt(e.target.value) || 0));
-                        setDependentAges(newAges);
-                      }}
-                      min={0}
-                      max={26}
-                      className="px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                      placeholder={`Age ${i + 1}`}
-                      aria-label={`Dependent ${i + 1} age`}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
+          </div>
+        </div>
+
+        {/* Row 2: Ages (side by side when married) + Dependent ages */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-5 mt-5">
+          {/* Your age */}
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-1.5">Your age</label>
+            <input
+              type="number"
+              value={ageHeadRaw}
+              onChange={(e) => setAgeHeadRaw(e.target.value)}
+              onBlur={() => {
+                const clamped = Math.max(18, Math.min(100, parseInt(ageHeadRaw) || 18));
+                setAgeHead(clamped);
+                setAgeHeadRaw(String(clamped));
+              }}
+              min={18}
+              max={100}
+              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+            />
           </div>
 
-          {/* Empty columns for alignment */}
-          <div />
-          <div />
+          {/* Spouse's age (shown when married) */}
+          {married && (
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1.5">Spouse's age</label>
+              <input
+                type="number"
+                value={ageSpouseRaw}
+                onChange={(e) => setAgeSpouseRaw(e.target.value)}
+                onBlur={() => {
+                  const clamped = Math.max(18, Math.min(100, parseInt(ageSpouseRaw) || 18));
+                  setAgeSpouse(clamped);
+                  setAgeSpouseRaw(String(clamped));
+                }}
+                min={18}
+                max={100}
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+              />
+            </div>
+          )}
+
+          {/* Dependent ages (shown when dependents > 0) */}
+          {dependentAges.length > 0 && (
+            <div className={married ? "md:col-span-1" : "md:col-span-2"}>
+              <label className="block text-sm font-medium text-gray-600 mb-1.5">Dependent ages</label>
+              <div className="flex flex-wrap gap-2">
+                {dependentAges.map((age, i) => (
+                  <input
+                    key={i}
+                    type="number"
+                    value={age}
+                    onChange={(e) => {
+                      const newAges = [...dependentAges];
+                      newAges[i] = Math.max(0, Math.min(26, parseInt(e.target.value) || 0));
+                      setDependentAges(newAges);
+                    }}
+                    min={0}
+                    max={26}
+                    className="w-16 px-2 py-2 bg-white border border-gray-200 rounded-lg text-sm text-center focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                    aria-label={`Dependent ${i + 1} age`}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Calculate button */}
