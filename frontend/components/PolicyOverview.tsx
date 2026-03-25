@@ -32,7 +32,7 @@ export default function PolicyOverview() {
           Oregon&apos;s Kicker Credit
         </h2>
         <p className="text-gray-700 mb-4">
-          The Oregon Kicker, officially known as the Oregon Surplus Refund, is a unique tax provision
+          The Oregon Kicker, officially known as the Oregon Surplus Refund, is a tax provision
           that returns excess state revenue to taxpayers. When Oregon&apos;s actual revenue for a two-year
           budget period exceeds the forecasted revenue by more than 2%, the surplus is returned to
           taxpayers as a refundable credit on their state income tax return.
