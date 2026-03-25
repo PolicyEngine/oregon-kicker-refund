@@ -63,7 +63,7 @@ export default function PolicyOverview() {
             <h3 className="font-semibold text-gray-800 mb-2">Refundable credit</h3>
             <p className="text-sm text-gray-600">
               The kicker is a refundable credit, meaning you receive the full amount even if it
-              exceeds your tax liability &mdash; it either reduces your taxes or increases your refund.
+              exceeds your tax liability.
             </p>
           </div>
         </div>
@@ -75,7 +75,7 @@ export default function PolicyOverview() {
           2025 Kicker Rate: 9.863%
         </h3>
         <p className="text-gray-700">
-          For tax year 2025, Oregon will return <strong>9.863%</strong> of your 2024 Oregon tax liability
+          For tax year 2025, Oregon will return <strong>9.863%</strong> of 2024 Oregon tax liability
           before credits. For example, if you had $5,000 in Oregon tax liability for 2024, your 2025
           kicker credit would be <strong>$493.15</strong>.
         </p>
@@ -122,8 +122,7 @@ export default function PolicyOverview() {
         </div>
         <ChartWatermark />
         <p className="text-xs text-gray-500 mt-2">
-          The kicker only occurs in odd years. In even years (2022, 2024, 2026), there is no kicker as these are the
-          &quot;off&quot; years in Oregon&apos;s biennial budget cycle.
+          The kicker only occurs in odd years, following Oregon&apos;s biennial budget cycle.
         </p>
       </div>
 

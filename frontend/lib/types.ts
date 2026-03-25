@@ -1,8 +1,18 @@
+export type IncomeSourceKey =
+  | "capital_gains"
+  | "self_employment_income"
+  | "taxable_social_security"
+  | "taxable_pension_income"
+  | "dividend_income"
+  | "taxable_interest_income"
+  | "taxable_retirement_distributions";
+
 export interface HouseholdRequest {
   age_head: number;
   age_spouse: number | null;
   dependent_ages: number[];
   income: number;
+  additional_income: Partial<Record<IncomeSourceKey, number>>;
   year: number;
   max_earnings: number;
 }

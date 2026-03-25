@@ -25,14 +25,30 @@ export function buildHouseholdSituation(
     age_spouse,
     dependent_ages,
     income,
+    additional_income,
     year,
     max_earnings,
   } = params;
   const yearStr = String(year);
   const axisMax = Math.max(max_earnings, income);
 
+  // Build person object with all income sources
+  const personData: Record<string, any> = {
+    age: { [yearStr]: age_head },
+    employment_income: { [yearStr]: null },
+  };
+
+  // Add any additional income sources
+  if (additional_income) {
+    for (const [key, value] of Object.entries(additional_income)) {
+      if (value && value > 0) {
+        personData[key] = { [yearStr]: value };
+      }
+    }
+  }
+
   const situation: Record<string, any> = {
-    people: { you: { age: { [yearStr]: age_head }, employment_income: { [yearStr]: null } } },
+    people: { you: personData },
     families: { "your family": { members: ["you"] } },
     marital_units: { "your marital unit": { members: ["you"] } },
     spm_units: { "your household": { members: ["you"] } },

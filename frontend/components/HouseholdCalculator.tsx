@@ -13,8 +13,18 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { useHouseholdImpact } from '@/hooks/useHouseholdImpact';
-import type { HouseholdRequest } from '@/lib/types';
+import type { HouseholdRequest, IncomeSourceKey } from '@/lib/types';
 import ChartWatermark from './ChartWatermark';
+
+const INCOME_SOURCE_OPTIONS: { key: IncomeSourceKey; label: string }[] = [
+  { key: "capital_gains", label: "Capital gains" },
+  { key: "self_employment_income", label: "Self-employment income" },
+  { key: "taxable_social_security", label: "Social Security" },
+  { key: "taxable_pension_income", label: "Pension income" },
+  { key: "dividend_income", label: "Dividend income" },
+  { key: "taxable_interest_income", label: "Taxable interest" },
+  { key: "taxable_retirement_distributions", label: "Retirement distributions" },
+];
 
 export default function HouseholdCalculator() {
   const [ageHead, setAgeHead] = useState(35);
@@ -24,9 +34,33 @@ export default function HouseholdCalculator() {
   const [married, setMarried] = useState(false);
   const [dependentAges, setDependentAges] = useState<number[]>([]);
   const [income, setIncome] = useState(75000);
+  const [additionalIncome, setAdditionalIncome] = useState<Partial<Record<IncomeSourceKey, number>>>({});
+  const [selectedIncomeSources, setSelectedIncomeSources] = useState<IncomeSourceKey[]>([]);
   const [maxEarnings, setMaxEarnings] = useState(250000);
   const [triggered, setTriggered] = useState(false);
   const [submittedRequest, setSubmittedRequest] = useState<HouseholdRequest | null>(null);
+
+  const handleAddIncomeSource = (key: IncomeSourceKey) => {
+    if (!selectedIncomeSources.includes(key)) {
+      setSelectedIncomeSources([...selectedIncomeSources, key]);
+      setAdditionalIncome({ ...additionalIncome, [key]: 0 });
+    }
+  };
+
+  const handleRemoveIncomeSource = (key: IncomeSourceKey) => {
+    setSelectedIncomeSources(selectedIncomeSources.filter(k => k !== key));
+    const newIncome = { ...additionalIncome };
+    delete newIncome[key];
+    setAdditionalIncome(newIncome);
+  };
+
+  const handleAdditionalIncomeChange = (key: IncomeSourceKey, value: number) => {
+    setAdditionalIncome({ ...additionalIncome, [key]: value });
+  };
+
+  const availableIncomeSources = INCOME_SOURCE_OPTIONS.filter(
+    opt => !selectedIncomeSources.includes(opt.key)
+  );
 
   const handleMarriedChange = (value: boolean) => {
     setMarried(value);
@@ -56,6 +90,7 @@ export default function HouseholdCalculator() {
     age_spouse: married ? ageSpouse : null,
     dependent_ages: dependentAges,
     income,
+    additional_income: additionalIncome,
     year: 2025,
     max_earnings: maxEarnings,
   });
@@ -90,6 +125,52 @@ export default function HouseholdCalculator() {
                 className="w-full pl-6 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
               />
             </div>
+            {/* Add income source dropdown */}
+            {availableIncomeSources.length > 0 && (
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) {
+                    handleAddIncomeSource(e.target.value as IncomeSourceKey);
+                  }
+                }}
+                className="mt-2 w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors cursor-pointer"
+              >
+                <option value="">+ Add other income source</option>
+                {availableIncomeSources.map(opt => (
+                  <option key={opt.key} value={opt.key}>{opt.label}</option>
+                ))}
+              </select>
+            )}
+            {/* Additional income source inputs */}
+            {selectedIncomeSources.map(key => {
+              const label = INCOME_SOURCE_OPTIONS.find(opt => opt.key === key)?.label ?? key;
+              return (
+                <div key={key} className="mt-2 flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                    <input
+                      type="text"
+                      value={formatNumber(additionalIncome[key] ?? 0)}
+                      onChange={(e) => handleAdditionalIncomeChange(key, parseNumber(e.target.value))}
+                      placeholder={label}
+                      className="w-full pl-6 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                    />
+                  </div>
+                  <span className="text-xs text-gray-500 min-w-[100px]">{label}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveIncomeSource(key)}
+                    className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                    aria-label={`Remove ${label}`}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              );
+            })}
           </div>
 
           {/* Filing status */}
