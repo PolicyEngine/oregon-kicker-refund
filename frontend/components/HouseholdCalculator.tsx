@@ -416,8 +416,8 @@ function ImpactResults({ request, triggered, maxEarnings }: ImpactResultsProps) 
                   tickFormatter={formatIncome}
                   stroke="#666"
                   domain={[0, xMax]}
+                  ticks={[0, xMax * 0.2, xMax * 0.4, xMax * 0.6, xMax * 0.8, xMax]}
                   allowDataOverflow={false}
-                  niceTicks="snap125"
                 />
                 <YAxis tickFormatter={formatCurrency} stroke="#666" width={80} niceTicks="snap125" />
                 <Tooltip
