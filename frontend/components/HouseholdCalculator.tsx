@@ -417,15 +417,15 @@ function ImpactResults({ request, triggered, maxEarnings }: ImpactResultsProps) 
                   stroke="#666"
                   domain={[0, xMax]}
                   allowDataOverflow={false}
-                  tickCount={6}
+                  niceTicks="snap125"
                 />
-                <YAxis tickFormatter={formatCurrency} stroke="#666" width={80} tickCount={6} />
+                <YAxis tickFormatter={formatCurrency} stroke="#666" width={80} niceTicks="snap125" />
                 <Tooltip
-                  formatter={(value: number, name: string) => [
-                    formatCurrency(value),
+                  formatter={(value, name) => [
+                    formatCurrency(value as number),
                     name === 'kicker_credit' ? 'Kicker Credit' : 'OR Tax Before Credits',
                   ]}
-                  labelFormatter={(value: number) => `Income: ${formatCurrency(value)}`}
+                  labelFormatter={(value) => `Income: ${formatCurrency(value as number)}`}
                 />
                 <Legend
                   formatter={(value) =>
