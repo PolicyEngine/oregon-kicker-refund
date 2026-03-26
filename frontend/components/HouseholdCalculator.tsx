@@ -4,6 +4,7 @@ import { useState } from 'react';
 import {
   LineChart,
   Line,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -11,6 +12,7 @@ import {
   Legend,
   ResponsiveContainer,
   ReferenceLine,
+  ComposedChart,
 } from 'recharts';
 import { useHouseholdImpact } from '@/hooks/useHouseholdImpact';
 import type { HouseholdRequest, IncomeSourceKey } from '@/lib/types';
@@ -36,7 +38,7 @@ export default function HouseholdCalculator() {
   const [income, setIncome] = useState(75000);
   const [additionalIncome, setAdditionalIncome] = useState<Partial<Record<IncomeSourceKey, number>>>({});
   const [selectedIncomeSources, setSelectedIncomeSources] = useState<IncomeSourceKey[]>([]);
-  const [maxEarnings, setMaxEarnings] = useState(250000);
+  const [maxEarnings, setMaxEarnings] = useState(500000);
   const [triggered, setTriggered] = useState(false);
   const [submittedRequest, setSubmittedRequest] = useState<HouseholdRequest | null>(null);
 
@@ -282,29 +284,6 @@ export default function HouseholdCalculator() {
         </div>
       </section>
 
-      {/* Chart x-axis options */}
-      {triggered && (
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <span>Chart x-axis max:</span>
-          {[100000, 250000, 500000, 1000000].map((v) => (
-            <button
-              key={v}
-              onClick={() => {
-                setMaxEarnings(v);
-                setSubmittedRequest((prev) => (prev ? { ...prev, max_earnings: v } : null));
-              }}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                maxEarnings === v
-                  ? 'bg-primary-500 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              ${v >= 1000000 ? `${v / 1000000}M` : `${v / 1000}k`}
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* Impact results */}
       {submittedRequest && (
         <ImpactResults
@@ -423,7 +402,13 @@ function ImpactResults({ request, triggered, maxEarnings }: ImpactResultsProps) 
           2025 kicker credit by 2024 employment income
         </h3>
             <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={chartData} margin={{ left: 20, right: 20, top: 5, bottom: 5 }}>
+              <ComposedChart data={chartData} margin={{ left: 20, right: 20, top: 5, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="kickerGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#319795" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#319795" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
                 <XAxis
                   dataKey="income"
@@ -432,8 +417,9 @@ function ImpactResults({ request, triggered, maxEarnings }: ImpactResultsProps) 
                   stroke="#666"
                   domain={[0, xMax]}
                   allowDataOverflow={false}
+                  tickCount={6}
                 />
-                <YAxis tickFormatter={formatCurrency} stroke="#666" width={80} />
+                <YAxis tickFormatter={formatCurrency} stroke="#666" width={80} tickCount={6} />
                 <Tooltip
                   formatter={(value: number, name: string) => [
                     formatCurrency(value),
@@ -447,6 +433,14 @@ function ImpactResults({ request, triggered, maxEarnings }: ImpactResultsProps) 
                   }
                 />
                 <ReferenceLine y={0} stroke="#666" strokeWidth={1} />
+                <Area
+                  type="monotone"
+                  dataKey="kicker_credit"
+                  fill="url(#kickerGradient)"
+                  stroke="none"
+                  name="kicker_area"
+                  legendType="none"
+                />
                 <Line
                   type="monotone"
                   dataKey="or_tax_before_credits"
@@ -464,7 +458,7 @@ function ImpactResults({ request, triggered, maxEarnings }: ImpactResultsProps) 
                   name="kicker_credit"
                   dot={false}
                 />
-              </LineChart>
+              </ComposedChart>
             </ResponsiveContainer>
             <ChartWatermark />
           </div>
