@@ -8,6 +8,7 @@ import { useCallback, useState, useRef, useEffect } from 'react';
  */
 
 const COLORS = {
+  primary400: '#38B2AC',
   primary500: '#319795',
   primary600: '#2C7A7B',
   primary700: '#285E61',
