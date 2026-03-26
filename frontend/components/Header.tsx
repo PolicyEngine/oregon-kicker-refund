@@ -23,6 +23,7 @@ const FONT = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sa
 const NAV_ITEMS = [
   { label: 'Research', href: 'https://policyengine.org/us/research' },
   { label: 'Model', href: 'https://policyengine.org/us/model' },
+  { label: 'API', href: 'https://policyengine.org/us/api' },
   {
     label: 'About',
     hasDropdown: true,
