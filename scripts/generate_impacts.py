@@ -20,6 +20,7 @@ from policyengine_us import Microsimulation
 from policyengine_core.reforms import Reform
 
 YEAR = 2025
+DATASET = "hf://policyengine/policyengine-us-data/states/OR.h5"
 OUTPUT_DIR = Path(__file__).parent.parent / "frontend" / "public" / "data"
 
 
@@ -34,11 +35,11 @@ def calculate_aggregate_impact():
         }
     }, country_id="us")
 
-    # Baseline: No kicker credit
-    baseline = Microsimulation(reform=no_kicker_reform)
+    # Baseline: No kicker credit (Oregon-only dataset)
+    baseline = Microsimulation(reform=no_kicker_reform, dataset=DATASET)
 
     # Reform: Current law (kicker in effect)
-    reformed = Microsimulation()
+    reformed = Microsimulation(dataset=DATASET)
 
     # Calculate Oregon tax before credits to inject as prior-year proxy
     print("Calculating Oregon tax for prior-year proxy...")
@@ -48,9 +49,10 @@ def calculate_aggregate_impact():
     baseline.set_input("or_tax_before_credits_in_prior_year", YEAR, tax_before_credits.values)
     reformed.set_input("or_tax_before_credits_in_prior_year", YEAR, tax_before_credits.values)
 
-    # Get kicker rate
+    # Get kicker rate - use getattr chain since "or" is a reserved word
     params = reformed.tax_benefit_system.parameters
-    kicker_param = params.gov.states["or"].tax.income.credits.kicker.percent
+    or_state = getattr(params.gov.states, "or")
+    kicker_param = or_state.tax.income.credits.kicker.percent
     kicker_rate = kicker_param(f"{YEAR}-01-01")
     print(f"Kicker rate for {YEAR}: {kicker_rate * 100:.3f}%")
 
@@ -128,13 +130,14 @@ def calculate_aggregate_impact():
             "households_millions": round(decile_hh_count / 1e6, 3),
         })
 
-    # Poverty impact
+    # Poverty impact - use weighted mean from MicroSeries
     print("Computing poverty impact...")
     baseline_poverty = baseline.calculate("in_poverty", period=YEAR)
     reformed_poverty = reformed.calculate("in_poverty", period=YEAR)
 
-    baseline_poverty_rate = (baseline_poverty * person_weight).sum() / person_weight.sum() * 100
-    reformed_poverty_rate = (reformed_poverty * person_weight).sum() / person_weight.sum() * 100
+    # MicroSeries .mean() uses built-in weights
+    baseline_poverty_rate = float(baseline_poverty.mean()) * 100
+    reformed_poverty_rate = float(reformed_poverty.mean()) * 100
     poverty_change = reformed_poverty_rate - baseline_poverty_rate
 
     poverty = [{
