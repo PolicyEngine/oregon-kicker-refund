@@ -1,2 +1,4 @@
 metric,baseline,reformed,change_pp
-overall_poverty,42.95,42.80,-0.15
+overall_poverty,35.24,35.08,-0.15
+child_poverty,24.17,24.01,-0.17
+deep_poverty,14.75,14.71,-0.04
