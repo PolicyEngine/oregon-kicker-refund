@@ -14,7 +14,8 @@ from pathlib import Path
 from policyengine_us import Microsimulation
 from policyengine_core.reforms import Reform
 
-YEAR = 2025
+YEAR = 2024
+KICKER_RATE = 0.09863  # 9.863% for 2025 kicker (based on 2024 tax filing)
 DATASET = "hf://policyengine/policyengine-us-data/states/OR.h5"
 OUTPUT_DIR = Path(__file__).parent.parent / "frontend" / "public" / "data"
 
@@ -37,11 +38,11 @@ _INTRA_KEYS = [
 ]
 
 
-def create_no_kicker_reform():
-    """Create reform that eliminates the kicker credit (used as baseline)."""
+def create_kicker_reform():
+    """Create reform that sets the kicker rate to 9.863% (actual 2025 rate)."""
     return Reform.from_dict({
         "gov.states.or.tax.income.credits.kicker.percent": {
-            "2024-01-01.2100-12-31": 0
+            "2024-01-01.2100-12-31": KICKER_RATE
         }
     }, country_id="us")
 
@@ -61,24 +62,20 @@ def calculate_aggregate_impact():
     """Run microsimulation and return aggregate impact data (KYPA format)."""
     print(f"Setting up simulations for {YEAR}...")
 
-    no_kicker_reform = create_no_kicker_reform()
+    kicker_reform = create_kicker_reform()
 
-    # Baseline: No kicker credit
-    sim_baseline = Microsimulation(reform=no_kicker_reform, dataset=DATASET)
-    # Reform: Current law (kicker in effect)
-    sim_reform = Microsimulation(dataset=DATASET)
+    # Baseline: Current law (no kicker for 2024, rate = 0%)
+    sim_baseline = Microsimulation(dataset=DATASET)
+    # Reform: Kicker at 9.863% rate
+    sim_reform = Microsimulation(reform=kicker_reform, dataset=DATASET)
 
-    # Inject prior-year tax (using current year as proxy)
-    print("Calculating Oregon tax for prior-year proxy...")
+    # Inject 2024 tax as prior-year tax (the kicker is based on this)
+    print("Calculating Oregon tax for 2024...")
     tax_before_credits = sim_baseline.calculate("or_income_tax_before_credits", period=YEAR)
     sim_baseline.set_input("or_tax_before_credits_in_prior_year", YEAR, tax_before_credits.values)
     sim_reform.set_input("or_tax_before_credits_in_prior_year", YEAR, tax_before_credits.values)
 
-    # Get kicker rate
-    params = sim_reform.tax_benefit_system.parameters
-    or_state = getattr(params.gov.states, "or")
-    kicker_rate = or_state.tax.income.credits.kicker.percent(f"{YEAR}-01-01")
-    print(f"Kicker rate for {YEAR}: {kicker_rate * 100:.3f}%")
+    print(f"Kicker rate: {KICKER_RATE * 100:.3f}%")
 
     # ===== FISCAL IMPACT =====
     print("Computing fiscal impact...")
@@ -278,7 +275,7 @@ def calculate_aggregate_impact():
         "budget": {
             "budgetary_impact": total_income_change,
             "households": total_households,
-            "kicker_rate": kicker_rate,
+            "kicker_rate": KICKER_RATE,
         },
         "decile": {
             "average": decile_average,
