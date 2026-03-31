@@ -1,6 +1,6 @@
 'use client';
 
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+const basePath = '/us/oregon-kicker-refund';
 
 /**
  * PolicyEngine logo watermark for Recharts charts.
