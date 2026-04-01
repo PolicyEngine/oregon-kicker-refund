@@ -16,7 +16,7 @@ from policyengine_core.reforms import Reform
 
 YEAR = 2024
 KICKER_RATE = 0.09863  # 9.863% for 2025 kicker (based on 2024 tax filing)
-DATASET = "hf://policyengine/policyengine-us-data/states/OR.h5"
+DATASET = "hf://policyengine/test/mar/OR.h5"
 OUTPUT_DIR = Path(__file__).parent.parent / "frontend" / "public" / "data"
 
 # API v2 intra-decile bounds and labels
