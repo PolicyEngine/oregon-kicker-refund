@@ -9,34 +9,57 @@ const TOOL_NAME = 'oregon-kicker-refund';
 
 const inter = Inter({
   subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700', '800'],
+  weight: ['400', '500', '600', '700'],
   display: 'swap',
 });
 
 const SITE_URL = 'https://policyengine.org/us/oregon-kicker-refund';
+const OG_IMAGE = 'https://policyengine.org/assets/logos/policyengine/og-logo.png';
 
 export const metadata: Metadata = {
-  title: 'Oregon Kicker Refund Calculator',
+  title: {
+    default: 'Oregon Kicker Refund Calculator | PolicyEngine',
+    template: '%s | PolicyEngine',
+  },
   description:
-    'Calculate your Oregon Kicker refund. See how much you\'ll receive from Oregon\'s surplus revenue credit based on your tax liability and employment income.',
+    'Calculate your 2025 Oregon Kicker refund. See how much you\'ll receive from Oregon\'s surplus revenue credit based on your 2024 tax liability and employment income.',
   metadataBase: new URL(SITE_URL),
   alternates: {
     canonical: SITE_URL,
   },
+  keywords: [
+    'Oregon Kicker',
+    'Oregon surplus refund',
+    'Oregon tax credit',
+    'kicker calculator',
+    'Oregon tax refund 2025',
+    'surplus revenue credit',
+    'PolicyEngine',
+  ],
   openGraph: {
-    title: 'Oregon Kicker Refund Calculator',
+    title: 'Oregon Kicker Refund Calculator | PolicyEngine',
     description:
-      'Calculate your Oregon Kicker refund. See how the surplus revenue credit changes based on your employment income and tax liability.',
+      'Calculate your 2025 Oregon Kicker refund. See how the surplus revenue credit changes based on your employment income and tax liability.',
     url: SITE_URL,
     siteName: 'PolicyEngine',
     type: 'website',
     locale: 'en_US',
+    images: [
+      {
+        url: OG_IMAGE,
+        width: 1200,
+        height: 630,
+        alt: 'PolicyEngine Oregon Kicker Refund Calculator',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Oregon Kicker Refund Calculator',
+    site: '@ThePolicyEngine',
+    title: 'Oregon Kicker Refund Calculator | PolicyEngine',
     description:
-      'Calculate your Oregon Kicker refund based on your tax liability.',
+      'Calculate your 2025 Oregon Kicker refund based on your tax liability.',
+    images: [OG_IMAGE],
   },
   other: {
     'theme-color': '#2C7A7B',
@@ -47,6 +70,43 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+};
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'Oregon Kicker Refund Calculator',
+  description:
+    'Calculate your 2025 Oregon Kicker refund based on your 2024 tax liability and employment income.',
+  url: SITE_URL,
+  applicationCategory: 'FinanceApplication',
+  operatingSystem: 'Any',
+  offers: {
+    '@type': 'Offer',
+    price: '0',
+    priceCurrency: 'USD',
+  },
+  provider: {
+    '@type': 'Organization',
+    name: 'PolicyEngine',
+    url: 'https://policyengine.org',
+    logo: 'https://policyengine.org/assets/logos/policyengine/og-logo.png',
+    sameAs: [
+      'https://twitter.com/ThePolicyEngine',
+      'https://www.facebook.com/PolicyEngine',
+      'https://www.linkedin.com/company/thepolicyengine',
+      'https://github.com/PolicyEngine',
+      'https://www.youtube.com/@policyengine',
+      'https://www.instagram.com/PolicyEngine/',
+    ],
   },
 };
 
@@ -58,6 +118,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.className}>
       <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
           strategy="afterInteractive"
@@ -116,6 +180,18 @@ export default function RootLayout({
         </Script>
       </head>
       <body>
+        <noscript>
+          <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'sans-serif' }}>
+            <h1>Oregon Kicker Refund Calculator</h1>
+            <p>This calculator requires JavaScript to function. Please enable JavaScript in your browser to use this tool.</p>
+            <p>
+              Learn more about the Oregon Kicker at{' '}
+              <a href="https://www.oregon.gov/dor/programs/individuals/pages/kicker.aspx">
+                Oregon Department of Revenue
+              </a>.
+            </p>
+          </div>
+        </noscript>
         <Providers>
           {children}
         </Providers>

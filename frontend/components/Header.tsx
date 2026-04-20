@@ -372,13 +372,15 @@ export default function Header() {
           <a href="https://policyengine.org/us" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', marginRight: '12px' }}>
             <img
               src="https://policyengine.org/assets/logos/policyengine/white.svg"
-              alt="PolicyEngine"
+              alt="PolicyEngine home"
+              width={64}
+              height={24}
               style={{ height: '24px', width: 'auto' }}
             />
           </a>
 
           {/* Desktop nav */}
-          <nav className="hidden lg:flex" style={{ alignItems: 'center', gap: '24px' }}>
+          <nav className="hidden lg:flex" aria-label="Main navigation" style={{ alignItems: 'center', gap: '24px' }}>
             {NAV_ITEMS.map((item) =>
               item.hasDropdown ? (
                 <div key={item.label} ref={aboutRef} style={{ position: 'relative' }}>
@@ -494,7 +496,7 @@ export default function Header() {
                 </svg>
               </button>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <nav aria-label="Mobile navigation" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {NAV_ITEMS.map((item) =>
                 item.hasDropdown ? (
                   <div key={item.label}>
@@ -515,7 +517,7 @@ export default function Header() {
                   </a>
                 ),
               )}
-            </div>
+            </nav>
           </div>
         </>
       )}

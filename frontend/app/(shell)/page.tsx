@@ -16,27 +16,36 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-primary-700 via-primary-500 to-primary-400 text-white py-8 px-4 shadow-md">
+      {/* Hero section */}
+      <section
+        className="bg-gradient-to-r from-primary-700 via-primary-500 to-primary-400 text-white py-8 px-4 shadow-md"
+        aria-label="Page introduction"
+      >
         <div className="max-w-5xl mx-auto">
           <h1 className="text-4xl font-bold mb-2">
             Oregon Kicker Refund Calculator
           </h1>
           <p className="text-lg opacity-90">
-            Calculate your Oregon surplus revenue credit
+            Calculate your 2025 Oregon surplus revenue credit based on your 2024 tax liability
           </p>
         </div>
-      </div>
+      </section>
 
       <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Tabs */}
-        <div className="flex space-x-1 mb-4 overflow-x-auto" role="tablist">
+        <div
+          className="flex space-x-1 mb-4 overflow-x-auto"
+          role="tablist"
+          aria-label="Calculator sections"
+        >
           {TAB_CONFIG.map((tab) => (
             <button
               key={tab.id}
+              id={`tab-${tab.id}`}
               role="tab"
               aria-selected={activeTab === tab.id}
               aria-controls={`tabpanel-${tab.id}`}
+              tabIndex={activeTab === tab.id ? 0 : -1}
               onClick={() => setActiveTab(tab.id)}
               className={`px-6 py-3 rounded-t-lg font-semibold transition-colors whitespace-nowrap ${
                 activeTab === tab.id
@@ -53,6 +62,7 @@ export default function Home() {
         <div
           role="tabpanel"
           id={`tabpanel-${activeTab}`}
+          aria-labelledby={`tab-${activeTab}`}
           className="bg-white rounded-lg shadow-md p-6"
         >
           {activeTab === 'policy' && <PolicyOverview />}
