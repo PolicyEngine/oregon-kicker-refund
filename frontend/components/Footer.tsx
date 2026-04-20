@@ -105,7 +105,10 @@ export default function Footer() {
         {/* Logo */}
         <img
           src="https://policyengine.org/assets/logos/policyengine/white.svg"
-          alt="PolicyEngine"
+          alt="PolicyEngine home"
+          width={140}
+          height={52}
+          loading="lazy"
           style={{ height: '52px', width: 'auto' }}
         />
 
@@ -114,7 +117,7 @@ export default function Footer() {
           {/* Left column: links + socials + copyright */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', alignItems: 'flex-start' }}>
             {/* Nav links */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <nav aria-label="Footer navigation" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               {NAV_LINKS.map(({ href, text }) => (
                 <a
                   key={href}
@@ -130,7 +133,7 @@ export default function Footer() {
                   {text}
                 </a>
               ))}
-            </div>
+            </nav>
 
             {/* Social icons + copyright */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -166,6 +169,8 @@ export default function Footer() {
               <input
                 type="email"
                 placeholder="Enter your email address"
+                aria-label="Email address for newsletter subscription"
+                autoComplete="email"
                 style={{
                   width: '100%',
                   height: '40px',

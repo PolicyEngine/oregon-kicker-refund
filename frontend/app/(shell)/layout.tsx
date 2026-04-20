@@ -7,10 +7,12 @@ export default function ShellLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
+    <div className="flex flex-col min-h-screen">
       <Header />
-      {children}
+      <div className="flex-1" role="main">
+        {children}
+      </div>
       <Footer />
-    </>
+    </div>
   );
 }
