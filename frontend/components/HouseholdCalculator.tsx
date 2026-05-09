@@ -230,7 +230,7 @@ export default function HouseholdCalculator() {
           {/* Spouse's age (shown when married) */}
           {married && (
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1.5">Spouse's age</label>
+              <label className="block text-sm font-medium text-gray-600 mb-1.5">Spouse&apos;s age</label>
               <input
                 type="number"
                 value={ageSpouseRaw}
