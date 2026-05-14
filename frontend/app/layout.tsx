@@ -1,3 +1,6 @@
+import { PolicyEngineShell } from "@policyengine/ui-kit/layout";
+import "@policyengine/ui-kit/styles.css";
+
 import Script from 'next/script';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
@@ -180,6 +183,7 @@ export default function RootLayout({
         </Script>
       </head>
       <body>
+        <PolicyEngineShell country="us">
         <noscript>
           <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'sans-serif' }}>
             <h1>Oregon Kicker Refund Calculator</h1>
@@ -195,6 +199,7 @@ export default function RootLayout({
         <Providers>
           {children}
         </Providers>
+              </PolicyEngineShell>
       </body>
     </html>
   );
