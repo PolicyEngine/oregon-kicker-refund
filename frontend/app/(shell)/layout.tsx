@@ -8,7 +8,6 @@ export default function ShellLayout({
 }) {
   return (
     <div className="flex flex-col min-h-screen">
-      <Header />
       <div className="flex-1" role="main">
         {children}
       </div>
