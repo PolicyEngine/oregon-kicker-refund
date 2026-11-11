@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   LineChart,
   Line,
@@ -14,7 +15,10 @@ import {
   ReferenceLine,
   ComposedChart,
 } from 'recharts';
-import { useHouseholdImpact } from '@/hooks/useHouseholdImpact';
+import {
+  resetFailedHouseholdImpact,
+  useHouseholdImpact,
+} from '@/hooks/useHouseholdImpact';
 import type { HouseholdRequest, IncomeSourceKey } from '@/lib/types';
 import ChartWatermark from './ChartWatermark';
 
@@ -29,6 +33,7 @@ const INCOME_SOURCE_OPTIONS: { key: IncomeSourceKey; label: string }[] = [
 ];
 
 export default function HouseholdCalculator() {
+  const queryClient = useQueryClient();
   const [ageHead, setAgeHead] = useState(35);
   const [ageHeadRaw, setAgeHeadRaw] = useState('35');
   const [ageSpouse, setAgeSpouse] = useState<number | null>(null);
@@ -98,7 +103,10 @@ export default function HouseholdCalculator() {
   });
 
   const handleCalculate = () => {
-    setSubmittedRequest(buildRequest());
+    const request = buildRequest();
+    // After a failure, the same household would otherwise keep showing it.
+    void resetFailedHouseholdImpact(queryClient, request);
+    setSubmittedRequest(request);
     setTriggered(true);
   };
 

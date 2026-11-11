@@ -51,13 +51,17 @@ export class HouseholdCalculationError extends Error {
   }
 }
 
-/** Whether React Query should retry a failed household calculation. */
+/**
+ * Whether React Query should retry a failed household calculation: once,
+ * and only after a brief gateway failure, since the firewall allows 30
+ * calculations a minute.
+ */
 export function shouldRetryHouseholdCalculation(
   failureCount: number,
   error: unknown,
 ): boolean {
   return (
-    failureCount < 2 &&
+    failureCount < 1 &&
     error instanceof HouseholdCalculationError &&
     error.retryable
   );
@@ -78,6 +82,7 @@ function calculationError(error: PolicyEngineApiError): HouseholdCalculationErro
   if (error.status === null) {
     // On another origin, such as the dashboard's own host, the firewall's
     // 429 has no CORS headers, so the browser reports a network failure.
+    // So does the dashboard API's 403 for an origin it does not allow.
     return new HouseholdCalculationError(
       "PolicyEngine's calculation service could not be reached. If many " +
         "calculations have been run from your network in the last minute, " +
@@ -91,13 +96,6 @@ function calculationError(error: PolicyEngineApiError): HouseholdCalculationErro
       "Too many calculations have been run from your network in the last " +
         "minute. Wait a minute and try again.",
       429,
-      false,
-    );
-  }
-  if (error.status === 403) {
-    return new HouseholdCalculationError(
-      "This page's address is not allowed to run PolicyEngine calculations.",
-      403,
       false,
     );
   }
