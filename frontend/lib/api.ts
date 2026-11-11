@@ -1,9 +1,15 @@
 /**
- * Oregon Kicker calculation via the PolicyEngine API.
+ * Oregon Kicker calculation via www.policyengine.org's dashboard API.
  *
- * Calls https://api.policyengine.org/us/calculate directly —
- * no backend server required.
+ * The page never calls the PolicyEngine Public API itself: the dashboard
+ * API's server adds PolicyEngine's credential and forwards the household
+ * to the Public API's /us/calculate.
  */
+
+import {
+  createPolicyEngineApiClient,
+  PolicyEngineApiError,
+} from "@policyengine/api-client";
 
 import {
   HouseholdRequest,
@@ -14,125 +20,160 @@ import {
   interpolate,
 } from "./household";
 
-const PE_API_URL = "https://api.policyengine.org";
+const policyengine = createPolicyEngineApiClient();
 
-class ApiError extends Error {
-  status: number;
-  response: unknown;
-  constructor(message: string, status: number, response?: unknown) {
+/**
+ * The rate Oregon set for the 2025 kicker: the share of 2024 Oregon tax
+ * liability before credits that is returned. It is the 2025 value of
+ * gov.states.or.tax.income.credits.kicker.percent, and the rate this page
+ * has always used.
+ */
+const KICKER_RATE_2025 = 0.09863;
+
+/** How long a calculation may take before the page gives up on it. */
+const CALCULATION_TIMEOUT_MILLISECONDS = 120_000;
+
+/** Brief gateway failures, which are worth retrying. */
+const RETRYABLE_STATUSES = new Set([502, 503, 504]);
+
+/** A household calculation failed; `message` is written for the user. */
+export class HouseholdCalculationError extends Error {
+  override name = "HouseholdCalculationError";
+
+  constructor(
+    message: string,
+    /** The dashboard API's HTTP status, or null when no answer was read. */
+    readonly status: number | null,
+    /** Whether trying again at once could succeed. */
+    readonly retryable: boolean,
+  ) {
     super(message);
-    this.status = status;
-    this.response = response;
   }
 }
 
-async function fetchWithTimeout(
-  url: string,
-  options: RequestInit,
-  timeout = 120000
-): Promise<Response> {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeout);
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-    return response;
-  } finally {
-    clearTimeout(id);
-  }
-}
-
-async function peCalculate(body: Record<string, any>): Promise<any> {
-  const response = await fetchWithTimeout(
-    `${PE_API_URL}/us/calculate`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    }
+/** Whether React Query should retry a failed household calculation. */
+export function shouldRetryHouseholdCalculation(
+  failureCount: number,
+  error: unknown,
+): boolean {
+  return (
+    failureCount < 2 &&
+    error instanceof HouseholdCalculationError &&
+    error.retryable
   );
-  if (!response.ok) {
-    let errorBody;
-    try {
-      errorBody = await response.json();
-    } catch {
-      errorBody = await response.text();
+}
+
+function dashboardApiMessage(body: unknown): string | null {
+  if (typeof body === "object" && body !== null) {
+    const message = (body as { message?: unknown }).message;
+    if (typeof message === "string" && message.length > 0) {
+      return message;
     }
-    throw new ApiError(
-      `PolicyEngine API error: ${response.status}`,
-      response.status,
-      errorBody
+  }
+  return null;
+}
+
+/** Turns a failure of the dashboard API client into a message for the user. */
+function calculationError(error: PolicyEngineApiError): HouseholdCalculationError {
+  if (error.status === null) {
+    // On another origin, such as the dashboard's own host, the firewall's
+    // 429 has no CORS headers, so the browser reports a network failure.
+    return new HouseholdCalculationError(
+      "PolicyEngine's calculation service could not be reached. If many " +
+        "calculations have been run from your network in the last minute, " +
+        "wait a minute and try again.",
+      null,
+      false,
     );
   }
-  return response.json();
-}
-
-// Fetch the 2025 kicker rate from PolicyEngine metadata
-async function fetchKickerRate(): Promise<number> {
-  try {
-    const response = await fetch(`${PE_API_URL}/us/metadata`);
-    if (!response.ok) throw new Error("Failed to fetch metadata");
-    const data = await response.json();
-
-    // Navigate to the kicker percent parameter
-    const kickerParam = data.parameters?.["gov.states.or.tax.income.credits.kicker.percent"];
-    if (kickerParam?.values) {
-      // Find the value for 2025
-      for (const entry of Object.values(kickerParam.values) as any[]) {
-        if (entry["2025-01-01"] !== undefined) {
-          return entry["2025-01-01"];
-        }
-      }
-      // Get the most recent value
-      const values = Object.entries(kickerParam.values).sort((a, b) =>
-        new Date(b[0]).getTime() - new Date(a[0]).getTime()
-      );
-      if (values.length > 0) {
-        return values[0][1] as number;
-      }
-    }
-  } catch (e) {
-    console.warn("Could not fetch kicker rate from API, using fallback");
+  if (error.status === 429) {
+    return new HouseholdCalculationError(
+      "Too many calculations have been run from your network in the last " +
+        "minute. Wait a minute and try again.",
+      429,
+      false,
+    );
   }
-  // Fallback to known 2025 rate
-  return 0.09863;
+  if (error.status === 403) {
+    return new HouseholdCalculationError(
+      "This page's address is not allowed to run PolicyEngine calculations.",
+      403,
+      false,
+    );
+  }
+  const detail =
+    dashboardApiMessage(error.body) ?? "Try again in a few minutes.";
+  return new HouseholdCalculationError(
+    `PolicyEngine could not calculate this household (HTTP ${error.status}): ${detail}`,
+    error.status,
+    RETRYABLE_STATUSES.has(error.status),
+  );
 }
 
-let cachedKickerRate: number | null = null;
+/** Values over the income axis, keyed by year. */
+type ValuesByYear = Record<string, number[] | undefined>;
+
+/** The parts of a calculated household this page reads. */
+interface CalculatedHousehold {
+  people?: Record<string, Record<string, ValuesByYear> | undefined>;
+  tax_units?: Record<string, Record<string, ValuesByYear> | undefined>;
+}
+
+async function calculateHousehold(
+  household: Record<string, unknown>
+): Promise<CalculatedHousehold> {
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(),
+    CALCULATION_TIMEOUT_MILLISECONDS
+  );
+  try {
+    return await policyengine.calculateHousehold<CalculatedHousehold>(
+      { country: "us", household },
+      { signal: controller.signal }
+    );
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new HouseholdCalculationError(
+        "The calculation took longer than two minutes. Try again.",
+        null,
+        false,
+      );
+    }
+    if (error instanceof PolicyEngineApiError) {
+      throw calculationError(error);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 export const api = {
   async calculateHouseholdImpact(
     request: HouseholdRequest
   ): Promise<HouseholdImpactResponse> {
-    // Fetch kicker rate (cached after first call)
-    if (cachedKickerRate === null) {
-      cachedKickerRate = await fetchKickerRate();
-    }
-    const kickerRate = cachedKickerRate;
+    const kickerRate = KICKER_RATE_2025;
 
     // Use 2024 for household calculation (2025 kicker is based on 2024 tax liability)
     const calcRequest = { ...request, year: 2024 };
     const household = buildHouseholdSituation(calcRequest);
     const yearStr = "2024";
 
-    // Run the calculation for 2024 tax year
-    const result = await peCalculate({
-      household,
-      output: ["or_income_tax_before_credits", "employment_income"],
-    });
+    // Run the calculation for 2024 tax year. It resolves with the
+    // calculated household (the Public API's `result`).
+    const result = await calculateHousehold(household);
 
-    const taxUnit = result.result?.tax_units?.["your tax unit"];
-    const personData = result.result?.people?.["you"];
+    const taxUnit = result.tax_units?.["your tax unit"];
+    const personData = result.people?.["you"];
 
     if (!taxUnit?.or_income_tax_before_credits) {
       const availableVars = taxUnit ? Object.keys(taxUnit) : [];
       throw new Error(`Missing or_income_tax_before_credits. Available OR variables: ${availableVars.filter(v => v.toLowerCase().includes("or")).join(", ") || "none"}`);
     }
 
-    const orTaxBeforeCredits: number[] = taxUnit.or_income_tax_before_credits[yearStr];
-    const incomeRange: number[] = personData.employment_income[yearStr];
+    const orTaxBeforeCredits = taxUnit.or_income_tax_before_credits[yearStr];
+    const incomeRange = personData?.employment_income?.[yearStr];
 
     if (!orTaxBeforeCredits || !incomeRange) {
       throw new Error(`Missing data for year ${yearStr}`);
