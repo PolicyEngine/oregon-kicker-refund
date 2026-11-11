@@ -41,7 +41,7 @@ describe("resetFailedHouseholdImpact", () => {
 
   it("runs a failed calculation again while the page shows it", async () => {
     let attempts = 0;
-    // The page's query, kept active as ImpactAnalysis keeps it.
+    // The page's query, kept active as ImpactResults keeps it.
     const observer = new QueryObserver(queryClient, {
       queryKey,
       queryFn: async () => {
