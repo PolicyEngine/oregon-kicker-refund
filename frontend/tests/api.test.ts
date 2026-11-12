@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   api,
   HouseholdCalculationError,
+  householdCalculationPauseRemaining,
+  pauseHouseholdCalculations,
   shouldRetryHouseholdCalculation,
 } from "@/lib/api";
 import { buildHouseholdSituation } from "@/lib/household";
@@ -80,7 +82,9 @@ async function calculationFailure(): Promise<unknown> {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  // Real time first, so that ending the pause ends it in real time.
   vi.useRealTimers();
+  pauseHouseholdCalculations(0);
 });
 
 describe("calculateHouseholdImpact", () => {
@@ -134,16 +138,18 @@ describe("calculateHouseholdImpact", () => {
     );
 
     expect(await calculationFailure()).toMatchObject({
-      message: expect.stringMatching(
-        /everyone on your network, such as a workshop or an office, shares a limit on calculations a minute.*can calculate again in a minute/i,
-      ),
+      // The countdown beside the button says when the page can calculate
+      // again, so the message stays true after the minute.
+      message:
+        "Everyone on your network, such as a workshop or an office, shares " +
+        "a limit on calculations a minute, and it has been reached.",
       status: 429,
       retryable: false,
       rateLimited: true,
     });
   });
 
-  it("asks the user to wait when no answer could be read", async () => {
+  it("explains the shared limit when no answer could be read", async () => {
     // A page on another origin cannot read the firewall's 429, which has no
     // CORS headers: the browser reports a network failure instead.
     vi.stubGlobal(
@@ -154,13 +160,77 @@ describe("calculateHouseholdImpact", () => {
     );
 
     expect(await calculationFailure()).toMatchObject({
-      message: expect.stringMatching(
-        /could not be reached.*everyone on your network, such as a workshop or an office, shares a limit on calculations a minute.*can calculate again in a minute/i,
-      ),
+      message:
+        "PolicyEngine's calculation service could not be reached. Everyone " +
+        "on your network, such as a workshop or an office, shares a limit " +
+        "on calculations a minute, which may have been reached.",
       status: null,
       retryable: false,
       rateLimited: true,
     });
+  });
+
+  it("reports a network failure on www.policyengine.org without pausing", async () => {
+    // The website serves this page there, so the page and the dashboard
+    // API share an origin and the firewall's 429 is readable: no answer
+    // means a network failure.
+    vi.stubGlobal("location", { origin: "https://www.policyengine.org" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("Failed to fetch");
+      }),
+    );
+
+    expect(await calculationFailure()).toMatchObject({
+      message:
+        "PolicyEngine's calculation service could not be reached. Check " +
+        "your connection and try again.",
+      status: null,
+      rateLimited: false,
+    });
+    expect(householdCalculationPauseRemaining()).toBe(0);
+  });
+
+  it("pauses household calculations for a minute after a refusal", async () => {
+    vi.useFakeTimers();
+    stubFetch(
+      () =>
+        new Response("Too Many Requests", {
+          status: 429,
+          headers: { "Content-Type": "text/plain" },
+        }),
+    );
+
+    await calculationFailure();
+
+    expect(householdCalculationPauseRemaining()).toBe(60_000);
+    vi.advanceTimersByTime(60_000);
+    expect(householdCalculationPauseRemaining()).toBe(0);
+  });
+
+  it("does not pause after other failures", async () => {
+    stubFetch(
+      () =>
+        new Response("Service Unavailable", {
+          status: 503,
+          headers: { "Content-Type": "text/plain" },
+        }),
+    );
+
+    await calculationFailure();
+
+    expect(householdCalculationPauseRemaining()).toBe(0);
+  });
+
+  it("sends no household calculation while calculations are paused", async () => {
+    const recordedRequests = stubFetch(() =>
+      okAnswer(calculatedHousehold([0, 100000], [0, 5000])),
+    );
+    pauseHouseholdCalculations();
+
+    expect(await calculationFailure()).toMatchObject({ rateLimited: true });
+    expect(recordedRequests).toEqual([]);
   });
 
   it("shows the server's message for a 403 the page can read", async () => {
