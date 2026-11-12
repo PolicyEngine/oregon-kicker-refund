@@ -20,6 +20,7 @@ import {
   useHouseholdCalculationPause,
   useHouseholdImpact,
 } from '@/hooks/useHouseholdImpact';
+import { SHARED_LIMIT_EXPLANATION } from '@/lib/api';
 import type { HouseholdRequest, IncomeSourceKey } from '@/lib/types';
 import ChartWatermark from './ChartWatermark';
 
@@ -296,6 +297,12 @@ export default function HouseholdCalculator() {
               ? `Calculate again in ${calculationPauseSeconds} s`
               : 'Calculate 2025 kicker'}
           </button>
+          {calculationsPaused && (
+            <p role="status" className="mt-3 text-sm text-amber-800">
+              {SHARED_LIMIT_EXPLANATION}. This page can calculate again in{' '}
+              {calculationPauseSeconds} s.
+            </p>
+          )}
         </div>
       </section>
 
@@ -352,7 +359,8 @@ function ImpactResults({ request, triggered, maxEarnings }: ImpactResultsProps) 
     return `$${(value / 1000).toFixed(0)}k`;
   };
 
-  const xMax = maxEarnings ?? data.x_axis_max;
+  // The range the shown answer was calculated for.
+  const xMax = shownRequest?.max_earnings ?? maxEarnings ?? data.x_axis_max;
   const chartData = data.income_range
     .map((inc, i) => ({
       income: inc,
@@ -368,7 +376,7 @@ function ImpactResults({ request, triggered, maxEarnings }: ImpactResultsProps) 
       {rateLimitNotice && (
         <div role="status" className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-900">
           <p>{rateLimitNotice}</p>
-          <p className="mt-1 text-sm">The results below are for the last household calculated.</p>
+          <p className="mt-1 text-sm">The results below are for the household shown before.</p>
         </div>
       )}
       <h2 className="text-2xl font-bold text-primary">Your Oregon Kicker</h2>
