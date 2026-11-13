@@ -70,10 +70,9 @@ function renderedCalculator(): string {
 }
 
 /**
- * Stands in for the calculator's results area, which the calculator does
- * not export: it calls the same hook for the submitted household and
- * prints what the results area shows, an error panel or the income of the
- * household whose answer is shown.
+ * Stands in for the calculator's results area with plain text: it calls
+ * the same hook for the submitted household and prints an error panel or
+ * the income of the household whose answer is shown.
  */
 function ResultsArea({ request }: { request: HouseholdRequest }) {
   const { data, error, shownRequest, rateLimitNotice } = useHouseholdImpact(
