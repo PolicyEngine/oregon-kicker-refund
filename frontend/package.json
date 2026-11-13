@@ -8,9 +8,11 @@
     "vercel-build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@policyengine/api-client": "^0.1.1",
     "@policyengine/ui-kit": "^0.12.0",
     "@tanstack/react-query": "^5.17.9",
     "axios": "^1.6.5",
@@ -28,6 +30,7 @@
     "eslint-config-next": "^16",
     "postcss": "^8.5.4",
     "tailwindcss": "^4.2.4",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "vitest": "^5.1.0"
   }
 }

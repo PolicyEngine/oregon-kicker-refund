@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   LineChart,
   Line,
@@ -14,7 +15,12 @@ import {
   ReferenceLine,
   ComposedChart,
 } from 'recharts';
-import { useHouseholdImpact } from '@/hooks/useHouseholdImpact';
+import {
+  submitHouseholdRequest,
+  useHouseholdCalculationPause,
+  useHouseholdImpact,
+} from '@/hooks/useHouseholdImpact';
+import { SHARED_LIMIT_EXPLANATION } from '@/lib/api';
 import type { HouseholdRequest, IncomeSourceKey } from '@/lib/types';
 import ChartWatermark from './ChartWatermark';
 
@@ -29,6 +35,7 @@ const INCOME_SOURCE_OPTIONS: { key: IncomeSourceKey; label: string }[] = [
 ];
 
 export default function HouseholdCalculator() {
+  const queryClient = useQueryClient();
   const [ageHead, setAgeHead] = useState(35);
   const [ageHeadRaw, setAgeHeadRaw] = useState('35');
   const [ageSpouse, setAgeSpouse] = useState<number | null>(null);
@@ -41,6 +48,10 @@ export default function HouseholdCalculator() {
   const [maxEarnings, setMaxEarnings] = useState(500000);
   const [triggered, setTriggered] = useState(false);
   const [submittedRequest, setSubmittedRequest] = useState<HouseholdRequest | null>(null);
+  // After a refusal for the firewall's limit, the page calculates nothing
+  // for a minute: everyone on the network shares the limit.
+  const calculationPauseSeconds = useHouseholdCalculationPause();
+  const calculationsPaused = calculationPauseSeconds > 0;
 
   const handleAddIncomeSource = (key: IncomeSourceKey) => {
     if (!selectedIncomeSources.includes(key)) {
@@ -98,8 +109,10 @@ export default function HouseholdCalculator() {
   });
 
   const handleCalculate = () => {
-    setSubmittedRequest(buildRequest());
-    setTriggered(true);
+    // A failed calculation of the same household runs again.
+    if (submitHouseholdRequest(queryClient, buildRequest(), setSubmittedRequest)) {
+      setTriggered(true);
+    }
   };
 
   return (
@@ -277,10 +290,21 @@ export default function HouseholdCalculator() {
         <div className="mt-8">
           <button
             onClick={handleCalculate}
-            className="py-3 px-10 rounded-lg font-semibold text-white bg-primary-500 hover:bg-primary-600 active:bg-primary-700 transition-all shadow-sm hover:shadow-md sm:w-auto w-full"
+            disabled={calculationsPaused}
+            className="py-3 px-10 rounded-lg font-semibold text-white bg-primary-500 hover:bg-primary-600 active:bg-primary-700 transition-all shadow-sm hover:shadow-md sm:w-auto w-full disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Calculate 2025 kicker
+            {calculationsPaused
+              ? `Calculate again in ${calculationPauseSeconds} s`
+              : 'Calculate 2025 kicker'}
           </button>
+          {calculationsPaused && (
+            <p className="mt-3 text-sm text-amber-800">
+              {/* Only the explanation is announced; the countdown changes
+                  every second. */}
+              <span role="status">{SHARED_LIMIT_EXPLANATION}.</span> This page
+              can calculate again in {calculationPauseSeconds} s.
+            </p>
+          )}
         </div>
       </section>
 
@@ -302,8 +326,14 @@ interface ImpactResultsProps {
   maxEarnings?: number;
 }
 
-function ImpactResults({ request, triggered, maxEarnings }: ImpactResultsProps) {
-  const { data, isLoading, error } = useHouseholdImpact(request, triggered);
+/**
+ * The results area for the submitted household. Exported so that tests,
+ * which render on the server and cannot press "Calculate 2025 kicker", can
+ * render it beside the calculator.
+ */
+export function ImpactResults({ request, triggered, maxEarnings }: ImpactResultsProps) {
+  const { data, isLoading, error, shownRequest, rateLimitNotice } =
+    useHouseholdImpact(request, triggered);
 
   if (!triggered) return null;
 
@@ -313,6 +343,7 @@ function ImpactResults({ request, triggered, maxEarnings }: ImpactResultsProps) 
         <div className="text-center">
           <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"></div>
           <p className="mt-4 text-gray-600">Calculating your kicker...</p>
+          <p className="mt-1 text-sm text-gray-500">A first calculation can take a few minutes.</p>
         </div>
       </div>
     );
@@ -336,7 +367,8 @@ function ImpactResults({ request, triggered, maxEarnings }: ImpactResultsProps) 
     return `$${(value / 1000).toFixed(0)}k`;
   };
 
-  const xMax = maxEarnings ?? data.x_axis_max;
+  // The range the shown answer was calculated for.
+  const xMax = shownRequest?.max_earnings ?? maxEarnings ?? data.x_axis_max;
   const chartData = data.income_range
     .map((inc, i) => ({
       income: inc,
@@ -349,6 +381,15 @@ function ImpactResults({ request, triggered, maxEarnings }: ImpactResultsProps) 
 
   return (
     <div className="space-y-8">
+      {/* Not a live region: the span beside the Calculate button, on screen
+          during the pause that every refusal starts, announces the
+          explanation. */}
+      {rateLimitNotice && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-900">
+          <p>{rateLimitNotice}</p>
+          <p className="mt-1 text-sm">The results below are for the household shown before.</p>
+        </div>
+      )}
       <h2 className="text-2xl font-bold text-primary">Your Oregon Kicker</h2>
 
       {/* Personal impact */}
@@ -357,7 +398,7 @@ function ImpactResults({ request, triggered, maxEarnings }: ImpactResultsProps) 
           Your estimated 2025 kicker
         </h3>
         <p className="text-gray-600 mb-4">
-          Based on your 2024 employment income of <strong>{formatCurrency(request?.income ?? 0)}</strong>
+          Based on your 2024 employment income of <strong>{formatCurrency(shownRequest?.income ?? 0)}</strong>
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
