@@ -326,7 +326,12 @@ interface ImpactResultsProps {
   maxEarnings?: number;
 }
 
-function ImpactResults({ request, triggered, maxEarnings }: ImpactResultsProps) {
+/**
+ * The results area for the submitted household. Exported so that tests,
+ * which render on the server and cannot press "Calculate 2025 kicker", can
+ * render it beside the calculator.
+ */
+export function ImpactResults({ request, triggered, maxEarnings }: ImpactResultsProps) {
   const { data, isLoading, error, shownRequest, rateLimitNotice } =
     useHouseholdImpact(request, triggered);
 
