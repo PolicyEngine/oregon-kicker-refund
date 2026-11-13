@@ -299,7 +299,72 @@ describe("calculateHouseholdImpact", () => {
     });
   });
 
-  it("gives up after two minutes without an answer", async () => {
+  it("lets a 502 or a 503 be retried, but not a 504", async () => {
+    const retryableByStatus: Record<number, boolean> = {};
+    for (const gatewayStatus of [502, 503, 504]) {
+      stubFetch(
+        () =>
+          new Response("Gateway failure", {
+            status: gatewayStatus,
+            headers: { "Content-Type": "text/plain" },
+          }),
+      );
+      const failure = (await calculationFailure()) as HouseholdCalculationError;
+      retryableByStatus[gatewayStatus] = failure.retryable;
+    }
+
+    // A 504 means the dashboard API has already waited 750 seconds for the
+    // household, so the page shows it instead.
+    expect(retryableByStatus).toEqual({ 502: true, 503: true, 504: false });
+  });
+
+  it("says the calculation service did not answer in time after a 504", async () => {
+    // The page now waits longer than the dashboard API, so the dashboard
+    // API's own answer to a household that took too long reaches it. Its
+    // message names an internal service, so the page says what to do.
+    stubFetch(() =>
+      jsonResponse(504, {
+        status: "error",
+        message: "The Public API did not answer in time.",
+        result: null,
+      }),
+    );
+
+    expect(await calculationFailure()).toMatchObject({
+      message:
+        "PolicyEngine's calculation service did not answer in time " +
+        "(HTTP 504). Try again in a few minutes.",
+      status: 504,
+      retryable: false,
+      rateLimited: false,
+    });
+  });
+
+  it("carries the failure's Retry-After, or null without one", async () => {
+    stubFetch(
+      () =>
+        new Response("Service Unavailable", {
+          status: 503,
+          headers: { "Content-Type": "text/plain", "Retry-After": "30" },
+        }),
+    );
+    const failureWithRetryAfter = await calculationFailure();
+    stubFetch(
+      () =>
+        new Response("Service Unavailable", {
+          status: 503,
+          headers: { "Content-Type": "text/plain" },
+        }),
+    );
+    const failureWithoutRetryAfter = await calculationFailure();
+
+    expect(failureWithRetryAfter).toMatchObject({ retryAfterSeconds: 30 });
+    expect(failureWithoutRetryAfter).toMatchObject({ retryAfterSeconds: null });
+  });
+
+  it("gives up after 13 minutes without an answer", async () => {
+    // 30 seconds more than the dashboard API's 750-second wait for a
+    // household, so the dashboard API's own 504 arrives first.
     vi.useFakeTimers();
     vi.stubGlobal(
       "fetch",
@@ -313,11 +378,17 @@ describe("calculateHouseholdImpact", () => {
       ),
     );
 
-    const failure = calculationFailure();
-    await vi.advanceTimersByTimeAsync(120_000);
+    let gaveUp = false;
+    const failure = calculationFailure().finally(() => {
+      gaveUp = true;
+    });
+    await vi.advanceTimersByTimeAsync(779_999);
+    const gaveUpBeforeThirteenMinutes = gaveUp;
+    await vi.advanceTimersByTimeAsync(1);
 
+    expect(gaveUpBeforeThirteenMinutes).toBe(false);
     expect(await failure).toMatchObject({
-      message: expect.stringMatching(/two minutes/i),
+      message: "The calculation took longer than 13 minutes. Try again.",
       status: null,
       retryable: false,
       rateLimited: false,
@@ -337,5 +408,30 @@ describe("shouldRetryHouseholdCalculation", () => {
     ).toEqual([true, false]);
     expect(shouldRetryHouseholdCalculation(0, rateLimited)).toBe(false);
     expect(shouldRetryHouseholdCalculation(0, new Error("other"))).toBe(false);
+  });
+
+  it("does not retry a failure whose Retry-After asks for over a minute", async () => {
+    const failureAfterRetryAfter = async (retryAfterSeconds: number) => {
+      stubFetch(
+        () =>
+          new Response("Service Unavailable", {
+            status: 503,
+            headers: {
+              "Content-Type": "text/plain",
+              "Retry-After": String(retryAfterSeconds),
+            },
+          }),
+      );
+      return calculationFailure();
+    };
+    const failureAskingForAMinute = await failureAfterRetryAfter(60);
+    const failureAskingForLonger = await failureAfterRetryAfter(61);
+
+    expect(shouldRetryHouseholdCalculation(0, failureAskingForAMinute)).toBe(
+      true,
+    );
+    expect(shouldRetryHouseholdCalculation(0, failureAskingForLonger)).toBe(
+      false,
+    );
   });
 });

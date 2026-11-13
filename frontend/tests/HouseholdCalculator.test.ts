@@ -1,14 +1,19 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createElement, type ReactElement } from "react";
+import { createElement, Fragment, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import HouseholdCalculator from "@/components/HouseholdCalculator";
+import HouseholdCalculator, { ImpactResults } from "@/components/HouseholdCalculator";
 import {
   rememberShownHouseholdRequest,
   useHouseholdImpact,
 } from "@/hooks/useHouseholdImpact";
-import { HouseholdCalculationError, pauseHouseholdCalculations } from "@/lib/api";
+import {
+  api,
+  HouseholdCalculationError,
+  pauseHouseholdCalculations,
+  SHARED_LIMIT_EXPLANATION,
+} from "@/lib/api";
 import type { HouseholdImpactResponse, HouseholdRequest } from "@/lib/types";
 
 // Server rendering runs no effects, and this repository has no DOM test
@@ -156,6 +161,7 @@ async function refuse(request: HouseholdRequest): Promise<void> {
 afterEach(() => {
   unmountAll();
   pendingEffects.length = 0;
+  vi.restoreAllMocks();
   queryClient.clear();
   rememberShownHouseholdRequest(queryClient, null);
   // Real time first, so that ending the pause ends it in real time.
@@ -164,7 +170,7 @@ afterEach(() => {
 });
 
 describe("HouseholdCalculator during a pause", () => {
-  it("announces the shared limit, but not the countdown that changes every second", () => {
+  it("announces the shared limit once, but not the countdown that changes every second, even above a kept answer", async () => {
     vi.useFakeTimers();
     pauseHouseholdCalculations();
 
@@ -175,6 +181,62 @@ describe("HouseholdCalculator during a pause", () => {
         "limit on calculations a minute.",
     ]);
     expect(textOf(markup)).toContain("This page can calculate again in 60 s.");
+
+    // A refusal keeps the household calculated before on screen, under its
+    // notice, during the pause the refusal started. The page renders the
+    // results area inside the calculator, below the Calculate button.
+    unmountAll();
+    queryClient.setQueryData(
+      ["householdImpact", calculatedRequest],
+      calculatedAnswer,
+    );
+    rememberShownHouseholdRequest(queryClient, calculatedRequest);
+    await refuse(refusedRequest);
+    const pageMarkup = renderWithEffects(
+      createElement(
+        Fragment,
+        null,
+        createElement(HouseholdCalculator),
+        createElement(ImpactResults, {
+          request: refusedRequest,
+          triggered: true,
+        }),
+      ),
+    );
+
+    expect(textOf(pageMarkup)).toContain(
+      "The results below are for the household shown before.",
+    );
+    expect(
+      liveRegionTexts(pageMarkup).filter((liveRegionText) =>
+        liveRegionText.includes(SHARED_LIMIT_EXPLANATION),
+      ),
+    ).toEqual([
+      "Everyone on your network, such as a workshop or an office, shares a " +
+        "limit on calculations a minute.",
+    ]);
+  });
+});
+
+describe("HouseholdCalculator while a household calculates", () => {
+  it("says a first calculation can take a few minutes", () => {
+    // Nothing is sent: a server render starts no calculation, and none
+    // could reach the network.
+    vi.spyOn(api, "calculateHouseholdImpact").mockReturnValue(
+      new Promise(() => undefined),
+    );
+
+    const markup = textOf(
+      renderWithEffects(
+        createElement(ImpactResults, {
+          request: calculatedRequest,
+          triggered: true,
+        }),
+      ),
+    );
+
+    expect(markup).toContain("Calculating your kicker...");
+    expect(markup).toContain("A first calculation can take a few minutes.");
   });
 });
 
